@@ -224,6 +224,33 @@ pub const TracyAllocator = struct {
     }
 
     pub fn allocator(self: *TracyAllocator) std.mem.Allocator {
-        return self.child_allocator;
+        return .{
+            .ptr = self,
+            .vtable = &.{
+                .alloc = alloc,
+                .resize = resize,
+                .remap = remap,
+                .free = free,
+            },
+        };
+    }
+
+    fn alloc(ctx: *anyopaque, n: usize, alignment: std.mem.Alignment, ret_addr: usize) ?[*]u8 {
+        const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
+        return self.child_allocator.rawAlloc(n, alignment, ret_addr);
+    }
+    fn resize(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) bool {
+        const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
+        return self.child_allocator.rawResize(buf, alignment, new_len, ret_addr);
+    }
+
+    fn remap(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, new_len: usize, ret_addr: usize) ?[*]u8 {
+        const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
+        return self.child_allocator.rawRemap(buf, alignment, new_len, ret_addr);
+    }
+
+    fn free(ctx: *anyopaque, buf: []u8, alignment: std.mem.Alignment, ret_addr: usize) void {
+        const self: *TracyAllocator = @ptrCast(@alignCast(ctx));
+        return self.child_allocator.rawFree(buf, alignment, ret_addr);
     }
 };
